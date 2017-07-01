@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace PhilipRehberger\WebhookSignature\Tests;
 
+use PhilipRehberger\WebhookSignature\Exceptions\InvalidSignatureException;
+use PhilipRehberger\WebhookSignature\Exceptions\SignatureExpiredException;
 use PhilipRehberger\WebhookSignature\WebhookSignature;
 use PHPUnit\Framework\TestCase;
 
@@ -161,5 +163,130 @@ class WebhookSignatureTest extends TestCase
             WebhookSignature::verify(self::PAYLOAD, $tamperedSignature, self::SECRET),
             'A signature with a single character changed must fail'
         );
+    }
+
+    public function test_verify_or_fail_passes_for_valid_signature(): void
+    {
+        $signature = WebhookSignature::generate(self::PAYLOAD, self::SECRET);
+
+        // Should not throw
+        WebhookSignature::verifyOrFail(self::PAYLOAD, $signature, self::SECRET);
+
+        $this->addToAssertionCount(1);
+    }
+
+    public function test_verify_or_fail_throws_invalid_signature_for_wrong_secret(): void
+    {
+        $signature = WebhookSignature::generate(self::PAYLOAD, self::SECRET);
+
+        $this->expectException(InvalidSignatureException::class);
+
+        WebhookSignature::verifyOrFail(self::PAYLOAD, $signature, 'wrong-secret');
+    }
+
+    public function test_verify_or_fail_throws_invalid_signature_for_malformed(): void
+    {
+        $this->expectException(InvalidSignatureException::class);
+
+        WebhookSignature::verifyOrFail(self::PAYLOAD, 'garbage', self::SECRET);
+    }
+
+    public function test_verify_or_fail_throws_signature_expired_for_old_timestamp(): void
+    {
+        $oldTimestamp = time() - 600;
+        $signature = WebhookSignature::generate(self::PAYLOAD, self::SECRET, $oldTimestamp);
+
+        $this->expectException(SignatureExpiredException::class);
+
+        WebhookSignature::verifyOrFail(self::PAYLOAD, $signature, self::SECRET);
+    }
+
+    public function test_verify_or_fail_uses_custom_tolerance(): void
+    {
+        $recentTimestamp = time() - 10;
+        $signature = WebhookSignature::generate(self::PAYLOAD, self::SECRET, $recentTimestamp);
+
+        // Should pass with 60s tolerance
+        WebhookSignature::verifyOrFail(self::PAYLOAD, $signature, self::SECRET, 60);
+
+        $this->addToAssertionCount(1);
+    }
+
+    public function test_verify_or_fail_throws_expired_at_exact_boundary(): void
+    {
+        $tolerance = 30;
+        // Timestamp is exactly tolerance+1 seconds old
+        $oldTimestamp = time() - ($tolerance + 1);
+        $signature = WebhookSignature::generate(self::PAYLOAD, self::SECRET, $oldTimestamp);
+
+        $this->expectException(SignatureExpiredException::class);
+
+        WebhookSignature::verifyOrFail(self::PAYLOAD, $signature, self::SECRET, $tolerance);
+    }
+
+    public function test_parse_rejects_non_hex_v1(): void
+    {
+        // Construct a signature with non-hex v1
+        $header = 't='.time().',v1=ZZZZ0000000000000000000000000000000000000000000000000000000000ZZ';
+
+        $this->assertNull(WebhookSignature::parseSignatureHeader($header));
+        $this->assertFalse(WebhookSignature::verify(self::PAYLOAD, $header, self::SECRET));
+    }
+
+    public function test_parse_rejects_short_v1(): void
+    {
+        $header = 't='.time().',v1=abcdef';
+
+        $this->assertNull(WebhookSignature::parseSignatureHeader($header));
+    }
+
+    public function test_parse_rejects_non_numeric_timestamp(): void
+    {
+        $header = 't=not-a-number,v1='.str_repeat('a', 64);
+
+        $this->assertNull(WebhookSignature::parseSignatureHeader($header));
+        $this->assertFalse(WebhookSignature::verify(self::PAYLOAD, $header, self::SECRET));
+    }
+
+    public function test_parse_rejects_negative_timestamp(): void
+    {
+        $header = 't=-12345,v1='.str_repeat('a', 64);
+
+        $this->assertNull(WebhookSignature::parseSignatureHeader($header));
+    }
+
+    public function test_verify_with_empty_payload(): void
+    {
+        $signature = WebhookSignature::generate('', self::SECRET);
+
+        $this->assertTrue(WebhookSignature::verify('', $signature, self::SECRET));
+    }
+
+    public function test_verify_with_utf8_payload(): void
+    {
+        $utf8Payload = '{"name":"München","emoji":"🚀"}';
+        $signature = WebhookSignature::generate($utf8Payload, self::SECRET);
+
+        $this->assertTrue(WebhookSignature::verify($utf8Payload, $signature, self::SECRET));
+    }
+
+    public function test_exception_classes_are_instantiable(): void
+    {
+        $invalid = new InvalidSignatureException;
+        $expired = new SignatureExpiredException;
+
+        $this->assertInstanceOf(\RuntimeException::class, $invalid);
+        $this->assertInstanceOf(InvalidSignatureException::class, $expired);
+        $this->assertStringContainsString('verification failed', $invalid->getMessage());
+        $this->assertStringContainsString('expired', $expired->getMessage());
+    }
+
+    public function test_exception_classes_accept_custom_messages(): void
+    {
+        $invalid = new InvalidSignatureException('Custom invalid message');
+        $expired = new SignatureExpiredException('Custom expired message');
+
+        $this->assertSame('Custom invalid message', $invalid->getMessage());
+        $this->assertSame('Custom expired message', $expired->getMessage());
     }
 }

@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2026-03-12
+
+### Added
+- `WebhookSignature::verifyOrFail()` — verify or throw `InvalidSignatureException` / `SignatureExpiredException`
+- `parseSignatureHeader()` now validates that `v1` is a 64-character hex string
+- `parseSignatureHeader()` now validates that the timestamp is numeric
+
+### Fixed
+- Non-numeric timestamps (e.g. `t=abc`) are now rejected instead of silently cast to `0`
+- Invalid `v1` values (non-hex, wrong length) are now rejected instead of accepted for comparison
+
 ## [1.0.0] - 2026-03-05
 
 ### Added
