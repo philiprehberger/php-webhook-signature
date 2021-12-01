@@ -1,6 +1,6 @@
 {
     "name": "philiprehberger/php-webhook-signature",
-    "description": "Minimal, framework-agnostic HMAC-SHA256 webhook signature generation and verification with replay attack prevention.",
+    "description": "Minimal, framework-agnostic HMAC-SHA256 webhook signature generation and verification with replay attack prevention",
     "type": "library",
     "keywords": ["webhook", "signature", "hmac", "sha256", "security", "stripe"],
     "homepage": "https://github.com/philiprehberger/webhook-signature",
