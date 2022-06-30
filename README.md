@@ -8,9 +8,7 @@ Minimal, framework-agnostic HMAC-SHA256 webhook signature generation and verific
 
 ## Requirements
 
-| Dependency | Version |
-|------------|---------|
-| PHP        | ^8.2    |
+- PHP 8.2+
 
 ## Installation
 
