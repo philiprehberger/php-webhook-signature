@@ -6,6 +6,7 @@ namespace PhilipRehberger\WebhookSignature\Tests;
 
 use PhilipRehberger\WebhookSignature\Exceptions\InvalidSignatureException;
 use PhilipRehberger\WebhookSignature\Exceptions\SignatureExpiredException;
+use PhilipRehberger\WebhookSignature\SignatureAlgorithm;
 use PhilipRehberger\WebhookSignature\WebhookSignature;
 use PHPUnit\Framework\TestCase;
 
@@ -288,5 +289,138 @@ class WebhookSignatureTest extends TestCase
 
         $this->assertSame('Custom invalid message', $invalid->getMessage());
         $this->assertSame('Custom expired message', $expired->getMessage());
+    }
+
+    public function test_signature_algorithm_enum_values(): void
+    {
+        $this->assertSame('sha256', SignatureAlgorithm::Sha256->value);
+        $this->assertSame('sha384', SignatureAlgorithm::Sha384->value);
+        $this->assertSame('sha512', SignatureAlgorithm::Sha512->value);
+    }
+
+    public function test_signature_algorithm_hex_lengths(): void
+    {
+        $this->assertSame(64, SignatureAlgorithm::Sha256->hexLength());
+        $this->assertSame(96, SignatureAlgorithm::Sha384->hexLength());
+        $this->assertSame(128, SignatureAlgorithm::Sha512->hexLength());
+    }
+
+    public function test_sign_with_sha384_creates_valid_signature(): void
+    {
+        $signature = WebhookSignature::signWith(self::PAYLOAD, self::SECRET, SignatureAlgorithm::Sha384);
+
+        $this->assertMatchesRegularExpression(
+            '/^t=\d+,v1=[a-f0-9]{96}$/',
+            $signature,
+            'SHA-384 signature must have a 96-character hex HMAC'
+        );
+    }
+
+    public function test_sign_with_sha512_creates_valid_signature(): void
+    {
+        $signature = WebhookSignature::signWith(self::PAYLOAD, self::SECRET, SignatureAlgorithm::Sha512);
+
+        $this->assertMatchesRegularExpression(
+            '/^t=\d+,v1=[a-f0-9]{128}$/',
+            $signature,
+            'SHA-512 signature must have a 128-character hex HMAC'
+        );
+    }
+
+    public function test_verify_with_sha384_accepts_valid_signature(): void
+    {
+        $signature = WebhookSignature::signWith(self::PAYLOAD, self::SECRET, SignatureAlgorithm::Sha384);
+
+        $this->assertTrue(
+            WebhookSignature::verifyWith(self::PAYLOAD, $signature, self::SECRET, SignatureAlgorithm::Sha384),
+            'A freshly generated SHA-384 signature must verify successfully'
+        );
+    }
+
+    public function test_verify_with_sha512_accepts_valid_signature(): void
+    {
+        $signature = WebhookSignature::signWith(self::PAYLOAD, self::SECRET, SignatureAlgorithm::Sha512);
+
+        $this->assertTrue(
+            WebhookSignature::verifyWith(self::PAYLOAD, $signature, self::SECRET, SignatureAlgorithm::Sha512),
+            'A freshly generated SHA-512 signature must verify successfully'
+        );
+    }
+
+    public function test_verify_with_rejects_wrong_algorithm(): void
+    {
+        $signature = WebhookSignature::signWith(self::PAYLOAD, self::SECRET, SignatureAlgorithm::Sha384);
+
+        $this->assertFalse(
+            WebhookSignature::verifyWith(self::PAYLOAD, $signature, self::SECRET, SignatureAlgorithm::Sha512),
+            'Verifying a SHA-384 signature with SHA-512 must fail'
+        );
+    }
+
+    public function test_verify_with_rejects_wrong_secret(): void
+    {
+        $signature = WebhookSignature::signWith(self::PAYLOAD, self::SECRET, SignatureAlgorithm::Sha512);
+
+        $this->assertFalse(
+            WebhookSignature::verifyWith(self::PAYLOAD, $signature, 'wrong-secret', SignatureAlgorithm::Sha512),
+            'Verification with the wrong secret must fail'
+        );
+    }
+
+    public function test_sign_with_sha256_matches_generate(): void
+    {
+        $timestamp = 1700000000;
+        $fromGenerate = WebhookSignature::generate(self::PAYLOAD, self::SECRET, $timestamp);
+        $fromSignWith = WebhookSignature::signWith(self::PAYLOAD, self::SECRET, SignatureAlgorithm::Sha256, $timestamp);
+
+        $this->assertSame(
+            $fromGenerate,
+            $fromSignWith,
+            'signWith(SHA-256) must produce the same output as generate()'
+        );
+    }
+
+    public function test_verify_with_multiple_secrets_matches_new_secret(): void
+    {
+        $oldSecret = 'old-secret-key';
+        $newSecret = 'new-secret-key';
+        $signature = WebhookSignature::generate(self::PAYLOAD, $newSecret);
+
+        $this->assertTrue(
+            WebhookSignature::verifyWithMultipleSecrets(self::PAYLOAD, $signature, [$oldSecret, $newSecret]),
+            'Must verify when the new secret matches'
+        );
+    }
+
+    public function test_verify_with_multiple_secrets_matches_old_secret(): void
+    {
+        $oldSecret = 'old-secret-key';
+        $newSecret = 'new-secret-key';
+        $signature = WebhookSignature::generate(self::PAYLOAD, $oldSecret);
+
+        $this->assertTrue(
+            WebhookSignature::verifyWithMultipleSecrets(self::PAYLOAD, $signature, [$oldSecret, $newSecret]),
+            'Must verify when the old secret matches (key rotation)'
+        );
+    }
+
+    public function test_verify_with_multiple_secrets_returns_false_when_no_secrets_match(): void
+    {
+        $signature = WebhookSignature::generate(self::PAYLOAD, self::SECRET);
+
+        $this->assertFalse(
+            WebhookSignature::verifyWithMultipleSecrets(self::PAYLOAD, $signature, ['wrong-1', 'wrong-2', 'wrong-3']),
+            'Must return false when none of the provided secrets match'
+        );
+    }
+
+    public function test_verify_with_multiple_secrets_returns_false_for_empty_array(): void
+    {
+        $signature = WebhookSignature::generate(self::PAYLOAD, self::SECRET);
+
+        $this->assertFalse(
+            WebhookSignature::verifyWithMultipleSecrets(self::PAYLOAD, $signature, []),
+            'Must return false when no secrets are provided'
+        );
     }
 }

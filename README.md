@@ -88,6 +88,46 @@ try {
 }
 ```
 
+### Key Rotation with Multiple Secrets
+
+When rotating webhook secrets, both the old and new secrets can be accepted during the transition period:
+
+```php
+use PhilipRehberger\WebhookSignature\WebhookSignature;
+
+$payload   = file_get_contents('php://input');
+$signature = $_SERVER['HTTP_X_WEBHOOK_SIGNATURE'] ?? '';
+
+// Accept signatures signed with either the old or new secret
+$secrets = [
+    'new-secret-after-rotation',
+    'old-secret-before-rotation',
+];
+
+if (! WebhookSignature::verifyWithMultipleSecrets($payload, $signature, $secrets)) {
+    http_response_code(401);
+    exit('Invalid signature');
+}
+
+// Signature matched one of the secrets — process the payload
+$data = json_decode($payload, true);
+```
+
+### Algorithm-Specific Signing
+
+Use `signWith()` and `verifyWith()` to sign and verify with SHA-384 or SHA-512 instead of the default SHA-256:
+
+```php
+use PhilipRehberger\WebhookSignature\SignatureAlgorithm;
+use PhilipRehberger\WebhookSignature\WebhookSignature;
+
+// Sign with SHA-512
+$signature = WebhookSignature::signWith($payload, $secret, SignatureAlgorithm::Sha512);
+
+// Verify with SHA-512
+$valid = WebhookSignature::verifyWith($payload, $signature, $secret, SignatureAlgorithm::Sha512);
+```
+
 ## API
 
 | Method | Description |
@@ -95,6 +135,9 @@ try {
 | `WebhookSignature::generate(string $payload, string $secret, ?int $timestamp = null): string` | Sign a payload; returns the formatted `t={ts},v1={hmac}` header value |
 | `WebhookSignature::verify(string $payload, string $signature, string $secret, int $tolerance = 300): bool` | Verify a signature; returns `false` if malformed, expired, or invalid |
 | `WebhookSignature::verifyOrFail(string $payload, string $signature, string $secret, int $tolerance = 300): void` | Verify a signature; throws `InvalidSignatureException` or `SignatureExpiredException` on failure |
+| `WebhookSignature::signWith(string $payload, string $secret, SignatureAlgorithm $algorithm, ?int $timestamp = null): string` | Sign a payload using a specific algorithm (SHA-256, SHA-384, or SHA-512) |
+| `WebhookSignature::verifyWith(string $payload, string $signature, string $secret, SignatureAlgorithm $algorithm, int $tolerance = 300): bool` | Verify a signature using a specific algorithm |
+| `WebhookSignature::verifyWithMultipleSecrets(string $payload, string $signature, array $secrets, int $tolerance = 300): bool` | Verify against multiple secrets; returns `true` if any matches (key rotation) |
 | `WebhookSignature::parseSignatureHeader(string $signature): ?array` | Parse a signature header into `['timestamp' => int, 'v1' => string]`; returns `null` on malformed input |
 
 ## Development
