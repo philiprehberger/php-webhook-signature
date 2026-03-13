@@ -94,9 +94,31 @@ if ($parts !== null) {
 
 Returns `null` if the header is malformed.
 
-### Exception-Based Flow
+### Exception-Based Flow with `verifyOrFail()`
 
-The package ships two exception classes for callers who prefer exceptions over boolean checks. Wire them into your own verification logic:
+The simplest way to use exception-based flow is the `verifyOrFail()` method:
+
+```php
+use PhilipRehberger\WebhookSignature\WebhookSignature;
+use PhilipRehberger\WebhookSignature\Exceptions\InvalidSignatureException;
+use PhilipRehberger\WebhookSignature\Exceptions\SignatureExpiredException;
+
+try {
+    WebhookSignature::verifyOrFail($payload, $signature, $secret);
+} catch (SignatureExpiredException $e) {
+    // Signature was valid but too old — possible replay attack
+    http_response_code(401);
+    exit('Signature expired');
+} catch (InvalidSignatureException $e) {
+    // Signature was malformed or cryptographically invalid
+    http_response_code(401);
+    exit('Invalid signature');
+}
+```
+
+### Manual Exception-Based Flow
+
+The package also ships two exception classes for callers who prefer to wire exceptions into their own verification logic:
 
 ```php
 use PhilipRehberger\WebhookSignature\WebhookSignature;
@@ -130,9 +152,15 @@ Signs a payload. Returns the formatted `t={ts},v1={hmac}` header value. Pass a c
 
 Verifies a signature. Returns `false` if the signature is malformed, expired, or cryptographically invalid. Uses `hash_equals()` for timing-safe comparison.
 
+### `WebhookSignature::verifyOrFail(string $payload, string $signature, string $secret, int $tolerance = 300): void`
+
+Verifies a signature and throws on failure. Throws `InvalidSignatureException` if the signature is malformed or cryptographically invalid. Throws `SignatureExpiredException` if the timestamp exceeds the tolerance window.
+
 ### `WebhookSignature::parseSignatureHeader(string $signature): ?array`
 
 Parses a signature header into `['timestamp' => int, 'v1' => string]`. Returns `null` on malformed input.
+
+> **Note:** `parseSignatureHeader()` now validates that the timestamp is numeric and that the v1 component is a valid 64-character hex string. Malformed values return `null`.
 
 ## Testing
 
