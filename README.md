@@ -1,5 +1,10 @@
 # philiprehberger/php-webhook-signature
 
+[![Tests](https://github.com/philiprehberger/webhook-signature/actions/workflows/tests.yml/badge.svg)](https://github.com/philiprehberger/webhook-signature/actions/workflows/tests.yml)
+[![Latest Version on Packagist](https://img.shields.io/packagist/v/philiprehberger/webhook-signature.svg)](https://packagist.org/packages/philiprehberger/webhook-signature)
+[![PHP Version Require](https://img.shields.io/packagist/php-v/philiprehberger/webhook-signature.svg)](https://packagist.org/packages/philiprehberger/webhook-signature)
+[![License](https://img.shields.io/github/license/philiprehberger/webhook-signature)](LICENSE)
+
 Minimal, framework-agnostic HMAC-SHA256 webhook signature generation and verification with replay attack prevention.
 
 Works with Laravel, Symfony, plain PHP — any environment running PHP 8.2+.
