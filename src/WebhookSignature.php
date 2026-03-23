@@ -121,6 +121,89 @@ class WebhookSignature
     }
 
     /**
+     * Generate a signature header value using a specific algorithm.
+     *
+     * @param  string  $payload  The raw request body / JSON payload
+     * @param  string  $secret  The shared webhook secret
+     * @param  SignatureAlgorithm  $algorithm  The HMAC algorithm to use
+     * @param  int|null  $timestamp  Unix timestamp to use; defaults to now
+     * @return string Formatted as t={timestamp},v1={hmac}
+     */
+    public static function signWith(
+        string $payload,
+        string $secret,
+        SignatureAlgorithm $algorithm,
+        ?int $timestamp = null
+    ): string {
+        $timestamp = $timestamp ?? time();
+        $signature = hash_hmac($algorithm->value, "{$timestamp}.{$payload}", $secret);
+
+        return "t={$timestamp},v1={$signature}";
+    }
+
+    /**
+     * Verify a webhook signature using a specific algorithm.
+     *
+     * @param  string  $payload  The raw request body / JSON payload
+     * @param  string  $signature  The X-Webhook-Signature header value
+     * @param  string  $secret  The shared webhook secret
+     * @param  SignatureAlgorithm  $algorithm  The HMAC algorithm to use
+     * @param  int  $tolerance  Maximum age in seconds (default 5 minutes)
+     */
+    public static function verifyWith(
+        string $payload,
+        string $signature,
+        string $secret,
+        SignatureAlgorithm $algorithm,
+        int $tolerance = 300
+    ): bool {
+        $parts = self::parseSignatureForAlgorithm($signature, $algorithm);
+
+        if (! $parts) {
+            return false;
+        }
+
+        if (abs(time() - $parts['timestamp']) > $tolerance) {
+            return false;
+        }
+
+        $expectedSignature = hash_hmac(
+            $algorithm->value,
+            "{$parts['timestamp']}.{$payload}",
+            $secret
+        );
+
+        return hash_equals($expectedSignature, $parts['v1']);
+    }
+
+    /**
+     * Verify a webhook signature against multiple secrets.
+     *
+     * Tries each secret in order and returns true if any matches.
+     * Useful for key rotation scenarios where both old and new secrets
+     * may be valid during a transition period.
+     *
+     * @param  string  $payload  The raw request body / JSON payload
+     * @param  string  $signature  The X-Webhook-Signature header value
+     * @param  array<string>  $secrets  List of secrets to try
+     * @param  int  $tolerance  Maximum age in seconds (default 5 minutes)
+     */
+    public static function verifyWithMultipleSecrets(
+        string $payload,
+        string $signature,
+        array $secrets,
+        int $tolerance = 300
+    ): bool {
+        foreach ($secrets as $secret) {
+            if (self::verify($payload, $signature, $secret, $tolerance)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
      * Parse the signature header into components.
      *
      * Validates that the timestamp is numeric and the v1 value is a 64-character hex string.
@@ -151,6 +234,47 @@ class WebhookSignature
 
         // Validate v1 is a 64-character hex string
         if (! preg_match('/^[a-f0-9]{64}$/', $parts['v1'])) {
+            return null;
+        }
+
+        return [
+            'timestamp' => (int) $parts['t'],
+            'v1' => $parts['v1'],
+        ];
+    }
+
+    /**
+     * Parse the signature header into components for a specific algorithm.
+     *
+     * Validates that the timestamp is numeric and the v1 value matches
+     * the expected hex length for the given algorithm.
+     *
+     * @return array{timestamp: int, v1: string}|null
+     */
+    private static function parseSignatureForAlgorithm(string $signature, SignatureAlgorithm $algorithm): ?array
+    {
+        $parts = [];
+
+        foreach (explode(',', $signature) as $part) {
+            if (! str_contains($part, '=')) {
+                return null;
+            }
+
+            [$key, $value] = explode('=', $part, 2);
+            $parts[$key] = $value;
+        }
+
+        if (! isset($parts['t']) || ! isset($parts['v1'])) {
+            return null;
+        }
+
+        if (! ctype_digit($parts['t'])) {
+            return null;
+        }
+
+        $hexLength = $algorithm->hexLength();
+
+        if (! preg_match('/^[a-f0-9]{'.$hexLength.'}$/', $parts['v1'])) {
             return null;
         }
 
