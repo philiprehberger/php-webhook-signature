@@ -3,6 +3,7 @@
 [![Tests](https://github.com/philiprehberger/webhook-signature/actions/workflows/tests.yml/badge.svg)](https://github.com/philiprehberger/webhook-signature/actions/workflows/tests.yml)
 [![Latest Version on Packagist](https://img.shields.io/packagist/v/philiprehberger/php-webhook-signature.svg)](https://packagist.org/packages/philiprehberger/php-webhook-signature)
 [![License](https://img.shields.io/github/license/philiprehberger/webhook-signature)](LICENSE)
+[![Sponsor](https://img.shields.io/badge/sponsor-GitHub%20Sponsors-ec6cb9)](https://github.com/sponsors/philiprehberger)
 
 Minimal, framework-agnostic HMAC-SHA256 webhook signature generation and verification with replay attack prevention.
 
