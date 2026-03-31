@@ -1,9 +1,8 @@
 # PHP Webhook Signature
 
 [![Tests](https://github.com/philiprehberger/webhook-signature/actions/workflows/tests.yml/badge.svg)](https://github.com/philiprehberger/webhook-signature/actions/workflows/tests.yml)
-[![Latest Version on Packagist](https://img.shields.io/packagist/v/philiprehberger/php-webhook-signature.svg)](https://packagist.org/packages/philiprehberger/php-webhook-signature)
-[![License](https://img.shields.io/github/license/philiprehberger/webhook-signature)](LICENSE)
-[![Sponsor](https://img.shields.io/badge/sponsor-GitHub%20Sponsors-ec6cb9)](https://github.com/sponsors/philiprehberger)
+[![Latest Version on Packagist](https://img.shields.io/packagist/v/philiprehberger/webhook-signature.svg)](https://packagist.org/packages/philiprehberger/webhook-signature)
+[![Last updated](https://img.shields.io/github/last-commit/philiprehberger/webhook-signature)](https://github.com/philiprehberger/webhook-signature/commits/main)
 
 Minimal, framework-agnostic HMAC-SHA256 webhook signature generation and verification with replay attack prevention.
 
@@ -150,6 +149,24 @@ vendor/bin/pint --test
 vendor/bin/phpstan analyse
 ```
 
+## Support
+
+If you find this project useful:
+
+⭐ [Star the repo](https://github.com/philiprehberger/webhook-signature)
+
+🐛 [Report issues](https://github.com/philiprehberger/webhook-signature/issues?q=is%3Aissue+is%3Aopen+label%3Abug)
+
+💡 [Suggest features](https://github.com/philiprehberger/webhook-signature/issues?q=is%3Aissue+is%3Aopen+label%3Aenhancement)
+
+❤️ [Sponsor development](https://github.com/sponsors/philiprehberger)
+
+🌐 [All Open Source Projects](https://philiprehberger.com/open-source-packages)
+
+💻 [GitHub Profile](https://github.com/philiprehberger)
+
+🔗 [LinkedIn Profile](https://www.linkedin.com/in/philiprehberger)
+
 ## License
 
-MIT
+[MIT](LICENSE)
